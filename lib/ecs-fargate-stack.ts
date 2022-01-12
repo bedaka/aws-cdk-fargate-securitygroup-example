@@ -31,7 +31,7 @@ export class EcsFargateStack extends Stack {
       this,
       "ExternalSg",
       Fn.importValue("external-sg"),
-      { mutable: false, allowAllOutbound: true }
+      { mutable: true, allowAllOutbound: true }
     );
 
     const fargateSG = new SecurityGroup(this, "FargateSg", {
@@ -83,14 +83,11 @@ export class EcsFargateStack extends Stack {
 
     service.attachToApplicationTargetGroup(targetGroup);
 
-    // In cases where an Ingress Rule is created, mutable:false is considered
-    // and no Rule will be created for the "ExternalDBbSg" unless set to true.
-    //
-    service.connections.allowFrom(
-      loadBalancer,
-      Port.tcp(5000),
-      "LB to Service HEALTH"
-    );
+    // service.connections.allowFrom(
+    //   loadBalancer,
+    //   Port.tcp(5000),
+    //   "LB to Service HEALTH"
+    // );
 
     service.connections.allowTo(testSG, Port.tcp(7777), "Fargate to TestSg");
   }
