@@ -31,7 +31,7 @@ export class EcsFargateStack extends Stack {
       this,
       "ExternalSg",
       Fn.importValue("external-sg"),
-      { mutable: true, allowAllOutbound: true }
+      { mutable: false, allowAllOutbound: true }
     );
 
     const fargateSG = new SecurityGroup(this, "FargateSg", {
