@@ -25,15 +25,23 @@ export class EcsFargateStack extends Stack {
       vpc: vpc,
     });
 
-    const externalDbSg = SecurityGroup.fromSecurityGroupId(
+    const testSG = new SecurityGroup(this, "TestSg", { vpc });
+
+    const externalSg = SecurityGroup.fromSecurityGroupId(
       this,
-      "ExternalDbSg",
-      Fn.importValue("external-database-sg"),
+      "ExternalSg",
+      Fn.importValue("external-sg"),
       { mutable: false, allowAllOutbound: true }
     );
 
     const fargateSG = new SecurityGroup(this, "FargateSg", {
       vpc,
+      allowAllOutbound: false,
+    });
+
+    const albSG = new SecurityGroup(this, "AlbSg", {
+      vpc,
+      allowAllOutbound: true,
     });
 
     const targetGroup = new ApplicationTargetGroup(this, "TargetGroup", {
@@ -46,9 +54,10 @@ export class EcsFargateStack extends Stack {
       port: 8080,
     });
 
-    new ApplicationLoadBalancer(this, "Alb", {
+    const loadBalancer = new ApplicationLoadBalancer(this, "Alb", {
       vpc,
       internetFacing: true,
+      securityGroup: albSG,
     }).addListener("Listener", {
       port: 443,
       certificates: [ListenerCertificate.fromArn("arn")],
@@ -69,7 +78,7 @@ export class EcsFargateStack extends Stack {
     const service = new FargateService(this, "FargateService", {
       cluster: cluster,
       taskDefinition: task,
-      securityGroups: [fargateSG, externalDbSg],
+      securityGroups: [fargateSG, externalSg],
     });
 
     service.attachToApplicationTargetGroup(targetGroup);
@@ -77,10 +86,12 @@ export class EcsFargateStack extends Stack {
     // In cases where an Ingress Rule is created, mutable:false is considered
     // and no Rule will be created for the "ExternalDBbSg" unless set to true.
     //
-    //   service.connections.allowFrom(
-    //     loadBalancer,
-    //     Port.tcp(5000),
-    //     "LB to Service HEALTH"
-    //   );
+    service.connections.allowFrom(
+      loadBalancer,
+      Port.tcp(5000),
+      "LB to Service HEALTH"
+    );
+
+    service.connections.allowTo(testSG, Port.tcp(7777), "Fargate to TestSg");
   }
 }
